@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User
+from models import db, User, Planet, Character, Starship, Favorite
 #from models import Person
 
 app = Flask(__name__)
@@ -44,6 +44,56 @@ def handle_hello():
     }
 
     return jsonify(response_body), 200
+
+@app.route('/planets', methods=['GET'])
+def list_planets():
+    planets = Planet.query.all()
+    planets_list = [{"id": planet.id, "name": planet.name, "climate": planet.climate, "terrain": planet.terrain, "gravity": planet.gravity, "population": planet.population} for planet in planets]
+    return jsonify(planets_list), 200
+
+@app.route('/characters', methods=['GET'])
+def list_characters():
+    characters = Character.query.all()
+    characters_list = [{"id": character.id, "name": character.name, "skin_color": character.skin_color, "mass": character.mass, "height": character.height} for character in characters]
+    return jsonify(characters_list), 200
+
+@app.route('/starships', methods=['GET'])
+def list_starships():
+    starships = Starship.query.all()
+    starships_list = [{"id": starship.id, "name": starship.name, "model": starship.model, "crew": starship.crew, "length": starship.length, "starship_class": starship.starship_class} for starship in starships]
+    return jsonify(starships_list), 200
+
+@app.route('/favorites', methods=['POST'])
+def add_favorite():
+    data = request.get_json()
+    user_id = data.get("userId")
+    favorite_type = data.get("favoriteType")
+    favorite_id = data.get("favoriteId")
+
+    if favorite_type not in ["planet", "character", "starship"]:
+        raise APIException("Invalid favorite type", status_code=400)
+
+    existing_favorite = Favorite.query.filter_by(user_id=user_id, favorite_type=favorite_type, favorite_id=favorite_id).first()
+    if existing_favorite:
+        raise APIException("Favorite already exists", status_code=400)
+
+    new_favorite = Favorite(user_id=user_id, favorite_type=favorite_type, favorite_id=favorite_id)
+    db.session.add(new_favorite)
+    db.session.commit()
+
+    return jsonify({"message": "Favorite added successfully"}), 201
+
+@app.route('/favorites/<favorite_id>', methods=['DELETE'])
+def remove_favorite(favorite_id):
+    favorite = Favorite.query.get(favorite_id)
+
+    if favorite is None:
+        raise APIException("Favorite not found", status_code=404)
+
+    db.session.delete(favorite)
+    db.session.commit()
+
+    return jsonify({"message": "Favorite removed successfully"}), 200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
