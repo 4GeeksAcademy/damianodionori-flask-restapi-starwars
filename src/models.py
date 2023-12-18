@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 db = SQLAlchemy()
 
@@ -69,4 +70,20 @@ class Character(db.Model):
             "skin_color": self.skin_color,
             "mass": self.mass,
             "height": self.height
+        }
+    
+class Favorite(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    favorite_type = db.Column(db.String(120), nullable=False)
+    favorite_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "favorite_type": self.favorite_type,
+            "favorite_id": self.favorite_id,
+            "created_at": self.created_at.strftime('%Y-%m-%d %H:%M:%S')
         }
