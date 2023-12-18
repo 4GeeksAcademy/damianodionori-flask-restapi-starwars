@@ -51,17 +51,44 @@ def list_planets():
     planets_list = [{"id": planet.id, "name": planet.name, "climate": planet.climate, "terrain": planet.terrain, "gravity": planet.gravity, "population": planet.population} for planet in planets]
     return jsonify(planets_list), 200
 
+@app.route('/planets/<int:planet_id>', methods=['GET'])
+def get_planet(planet_id):
+    planet = Planet.query.get(planet_id)
+
+    if planet is None:
+        raise APIException("Planet not found", status_code=404)
+
+    return jsonify(planet.serialize()), 200
+
 @app.route('/characters', methods=['GET'])
 def list_characters():
     characters = Character.query.all()
     characters_list = [{"id": character.id, "name": character.name, "skin_color": character.skin_color, "mass": character.mass, "height": character.height} for character in characters]
     return jsonify(characters_list), 200
 
+@app.route('/characters/<int:character_id>', methods=['GET'])
+def get_characters(character_id):
+    character = Character.query.get(character_id)
+
+    if character is None:
+        raise APIException("Character not found", status_code=404)
+
+    return jsonify(character.serialize()), 200
+
 @app.route('/starships', methods=['GET'])
 def list_starships():
     starships = Starship.query.all()
     starships_list = [{"id": starship.id, "name": starship.name, "model": starship.model, "crew": starship.crew, "length": starship.length, "starship_class": starship.starship_class} for starship in starships]
     return jsonify(starships_list), 200
+
+@app.route('/starships/<int:starship_id>', methods=['GET'])
+def get_starships(starship_id):
+    Starship = Starship.query.get(starship_id)
+
+    if Starship is None:
+        raise APIException("Starship not found", status_code=404)
+
+    return jsonify(Starship.serialize()), 200
 
 @app.route('/favorites', methods=['POST'])
 def add_favorite():
