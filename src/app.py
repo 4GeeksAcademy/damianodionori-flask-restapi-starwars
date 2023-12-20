@@ -45,82 +45,78 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-@app.route('/planets', methods=['GET'])
-def list_planets():
-    planets = Planet.query.all()
-    planets_list = [{"id": planet.id, "name": planet.name, "climate": planet.climate, "terrain": planet.terrain, "gravity": planet.gravity, "population": planet.population} for planet in planets]
-    return jsonify(planets_list), 200
+@app.route('/<entity>', methods=['GET'])
+def list_entities(entity):
+    entities = None
 
-@app.route('/planets/<int:planet_id>', methods=['GET'])
-def get_planet(planet_id):
-    planet = Planet.query.get(planet_id)
+    if entity == 'planets':
+        entities = Planet.query.all()
+    elif entity == 'characters':
+        entities = Character.query.all()
+    elif entity == 'starships':
+        entities = Starship.query.all()
+    elif entity == 'users':
+        entities = User.query.all()
+    else:
+        raise APIException("Invalid entity", status_code=400)
 
-    if planet is None:
-        raise APIException("Planet not found", status_code=404)
+    entities_list = [{"id": item.id, "name": item.name} for item in entities]
+    return jsonify(entities_list), 200
 
-    return jsonify(planet.serialize()), 200
+@app.route('/<entity>/<int:entity_id>', methods=['GET'])
+def get_entity(entity, entity_id):
+    item = None
 
-@app.route('/characters', methods=['GET'])
-def list_characters():
-    characters = Character.query.all()
-    characters_list = [{"id": character.id, "name": character.name, "skin_color": character.skin_color, "mass": character.mass, "height": character.height} for character in characters]
-    return jsonify(characters_list), 200
+    if entity == 'planets':
+        item = Planet.query.get(entity_id)
+    elif entity == 'characters':
+        item = Character.query.get(entity_id)
+    elif entity == 'starships':
+        item = Starship.query.get(entity_id)
+    elif entity == 'users':
+        item = User.query.get(entity_id)
+    else:
+        raise APIException("Invalid entity", status_code=400)
 
-@app.route('/characters/<int:character_id>', methods=['GET'])
-def get_characters(character_id):
-    character = Character.query.get(character_id)
+    if not item:
+        raise APIException(f"{entity.capitalize()} not found", status_code=404)
 
-    if character is None:
-        raise APIException("Character not found", status_code=404)
+    return jsonify(item.serialize()), 200
 
-    return jsonify(character.serialize()), 200
+@app.route('/favorite/<entity>/<int:entity_id>', methods=['POST'])
+def add_favorite(entity, entity_id):
+    if not g.user:
+        raise APIException("User not authenticated", status_code=401)
 
-@app.route('/starships', methods=['GET'])
-def list_starships():
-    starships = Starship.query.all()
-    starships_list = [{"id": starship.id, "name": starship.name, "model": starship.model, "crew": starship.crew, "length": starship.length, "starship_class": starship.starship_class} for starship in starships]
-    return jsonify(starships_list), 200
+    if entity not in ["planets", "characters", "starships"]:
+        raise APIException("Invalid entity for favorite", status_code=400)
 
-@app.route('/starships/<int:starship_id>', methods=['GET'])
-def get_starships(starship_id):
-    Starship = Starship.query.get(starship_id)
-
-    if Starship is None:
-        raise APIException("Starship not found", status_code=404)
-
-    return jsonify(Starship.serialize()), 200
-
-@app.route('/favorites', methods=['POST'])
-def add_favorite():
-    data = request.get_json()
-    user_id = data.get("userId")
-    favorite_type = data.get("favoriteType")
-    favorite_id = data.get("favoriteId")
-
-    if favorite_type not in ["planet", "character", "starship"]:
-        raise APIException("Invalid favorite type", status_code=400)
-
-    existing_favorite = Favorite.query.filter_by(user_id=user_id, favorite_type=favorite_type, favorite_id=favorite_id).first()
+    existing_favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
     if existing_favorite:
-        raise APIException("Favorite already exists", status_code=400)
+        raise APIException(f"Favorite {entity} already exists", status_code=400)
 
-    new_favorite = Favorite(user_id=user_id, favorite_type=favorite_type, favorite_id=favorite_id)
+    new_favorite = Favorite(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id)
     db.session.add(new_favorite)
     db.session.commit()
 
-    return jsonify({"message": "Favorite added successfully"}), 201
+    return jsonify({"message": f"Favorite {entity} added successfully"}), 201
 
-@app.route('/favorites/<favorite_id>', methods=['DELETE'])
-def remove_favorite(favorite_id):
-    favorite = Favorite.query.get(favorite_id)
+@app.route('/favorite/<entity>/<int:entity_id>', methods=['DELETE'])
+def remove_favorite(entity, entity_id):
+    if not g.user:
+        raise APIException("User not authenticated", status_code=401)
 
-    if favorite is None:
-        raise APIException("Favorite not found", status_code=404)
+    if entity not in ["planets", "characters", "starships"]:
+        raise APIException("Invalid entity for favorite", status_code=400)
+
+    favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
+    if not favorite:
+        raise APIException(f"Favorite {entity} not found", status_code=404)
 
     db.session.delete(favorite)
     db.session.commit()
 
-    return jsonify({"message": "Favorite removed successfully"}), 200
+    return jsonify({"message": f"Favorite {entity} removed successfully"}), 200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
