@@ -45,23 +45,42 @@ def handle_hello():
 
     return jsonify(response_body), 200
 
-@app.route('/<entity>', methods=['GET'])
-def list_entities(entity):
-    entities = None
+@app.route('/<entity>', methods=['GET', 'POST'])
+def manage_entities(entity):
+    if request.method == 'GET':
+        entities = None
 
-    if entity == 'planets':
-        entities = Planet.query.all()
-    elif entity == 'characters':
-        entities = Character.query.all()
-    elif entity == 'starships':
-        entities = Starship.query.all()
-    elif entity == 'users':
-        entities = User.query.all()
-    else:
-        raise APIException("Invalid entity", status_code=400)
+        if entity == 'planets':
+            entities = Planet.query.all()
+        elif entity == 'characters':
+            entities = Character.query.all()
+        elif entity == 'starships':
+            entities = Starship.query.all()
+        elif entity == 'users':
+            entities = User.query.all()
+        else:
+            raise APIException("Invalid entity", status_code=400)
 
-    entities_list = [{"id": item.id, "name": item.name} for item in entities]
-    return jsonify(entities_list), 200
+        entities_list = [{"id": item.id, "name": item.name} for item in entities]
+        return jsonify(entities_list), 200
+    elif request.method == 'POST':
+        data = request.get_json()
+
+        if entity == 'planets':
+            new_entity = Planet(**data)
+        elif entity == 'characters':
+            new_entity = Character(**data)
+        elif entity == 'starships':
+            new_entity = Starship(**data)
+        elif entity == 'users':
+            new_entity = User(**data)
+        else:
+            raise APIException("Invalid entity", status_code=400)
+
+        db.session.add(new_entity)
+        db.session.commit()
+
+        return jsonify({"message": f"{entity.capitalize()} created successfully"}), 201
 
 @app.route('/<entity>/<int:entity_id>', methods=['GET'])
 def get_entity(entity, entity_id):
