@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
-from flask import Flask, request, jsonify, url_for
+from flask import Flask, request, jsonify, g, url_for
 from flask_migrate import Migrate
 from flask_swagger import swagger
 from flask_cors import CORS
@@ -136,6 +136,55 @@ def remove_favorite(entity, entity_id):
     db.session.commit()
 
     return jsonify({"message": f"Favorite {entity} removed successfully"}), 200
+
+@app.route('/users', methods=['GET', 'POST'])
+def manage_users():
+    if request.method == 'GET':
+        # Get a list of all users
+        users = User.query.all()
+        users_list = [{"id": user.id, "username": user.username} for user in users]
+        return jsonify(users_list), 200
+
+    elif request.method == 'POST':
+        # Create a new user and associate favorites
+        data = request.get_json()
+
+        # Extract user information from the request data
+        email = data.get('email')
+        password = data.get('password')
+        is_active = data.get('is_active', True)
+        username = data.get('username')
+
+        # Create a new user instance
+        new_user = User(email=email, password=password, is_active=is_active, username=username)
+
+        # Add the user to the database
+        db.session.add(new_user)
+        db.session.commit()
+
+        # Check if favorites are provided in the request data
+        favorites = data.get('favorites', [])
+
+        # Associate favorites with the newly created user
+        for favorite in favorites:
+            # You may need to adjust this based on your actual model structure
+            new_favorite = Favorite(user_id=new_user.id, favorite_type=favorite['type'], favorite_id=favorite['id'])
+            db.session.add(new_favorite)
+
+        # Commit changes to the database
+        db.session.commit()
+
+        return jsonify({"message": "User created and favorites associated successfully"}), 201
+
+@app.route('/users/favorites', methods=['GET'])
+def get_user_favorites():
+    if not g.user:
+        raise APIException("User not authenticated", status_code=401)
+
+    favorites = Favorite.query.filter_by(user_id=g.user.id).all()
+    favorites_list = [{"type": favorite.favorite_type, "id": favorite.favorite_id} for favorite in favorites]
+
+    return jsonify(favorites_list), 200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
