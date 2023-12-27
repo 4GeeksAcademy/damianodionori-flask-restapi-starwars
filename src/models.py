@@ -10,6 +10,8 @@ class User(db.Model):
     is_active = db.Column(db.Boolean(), unique=False, nullable=False)
     username = db.Column(db.String(15), unique=True, nullable=False)
 
+    favorites = db.relationship('Favorite', backref='user', lazy=True)
+
     def __repr__(self):
         return '<User %r>' % self.username
 

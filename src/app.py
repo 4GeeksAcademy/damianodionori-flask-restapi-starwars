@@ -102,76 +102,64 @@ def get_entity(entity, entity_id):
 
     return jsonify(item.serialize()), 200
 
-@app.route('/favorite/<entity>/<int:entity_id>', methods=['POST'])
-def add_favorite(entity, entity_id):
+@app.route('/favorite/<entity>/<int:entity_id>', methods=['POST', 'DELETE'])
+def manage_favorite(entity, entity_id):
     if not g.user:
         raise APIException("User not authenticated", status_code=401)
 
     if entity not in ["planets", "characters", "starships"]:
         raise APIException("Invalid entity for favorite", status_code=400)
 
-    existing_favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
-    if existing_favorite:
-        raise APIException(f"Favorite {entity} already exists", status_code=400)
+    if request.method == 'POST':
+        # Add favorite logic
+        existing_favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
+        if existing_favorite:
+            raise APIException(f"Favorite {entity} already exists", status_code=400)
 
-    new_favorite = Favorite(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id)
-    db.session.add(new_favorite)
-    db.session.commit()
+        new_favorite = Favorite(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id)
+        db.session.add(new_favorite)
+        db.session.commit()
 
-    return jsonify({"message": f"Favorite {entity} added successfully"}), 201
+        return jsonify({"message": f"Favorite {entity} added successfully"}), 201
 
-@app.route('/favorite/<entity>/<int:entity_id>', methods=['DELETE'])
-def remove_favorite(entity, entity_id):
-    if not g.user:
-        raise APIException("User not authenticated", status_code=401)
+    elif request.method == 'DELETE':
+        # Remove favorite logic
+        favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
+        if not favorite:
+            raise APIException(f"Favorite {entity} not found", status_code=404)
 
-    if entity not in ["planets", "characters", "starships"]:
-        raise APIException("Invalid entity for favorite", status_code=400)
+        db.session.delete(favorite)
+        db.session.commit()
 
-    favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
-    if not favorite:
-        raise APIException(f"Favorite {entity} not found", status_code=404)
-
-    db.session.delete(favorite)
-    db.session.commit()
-
-    return jsonify({"message": f"Favorite {entity} removed successfully"}), 200
+        return jsonify({"message": f"Favorite {entity} removed successfully"}), 200
 
 @app.route('/users', methods=['GET', 'POST'])
 def manage_users():
     if request.method == 'GET':
-        # Get a list of all users
         users = User.query.all()
         users_list = [{"id": user.id, "username": user.username} for user in users]
         return jsonify(users_list), 200
 
     elif request.method == 'POST':
-        # Create a new user and associate favorites
+
         data = request.get_json()
 
-        # Extract user information from the request data
         email = data.get('email')
         password = data.get('password')
         is_active = data.get('is_active', True)
         username = data.get('username')
 
-        # Create a new user instance
         new_user = User(email=email, password=password, is_active=is_active, username=username)
 
-        # Add the user to the database
         db.session.add(new_user)
         db.session.commit()
 
-        # Check if favorites are provided in the request data
         favorites = data.get('favorites', [])
 
-        # Associate favorites with the newly created user
         for favorite in favorites:
-            # You may need to adjust this based on your actual model structure
             new_favorite = Favorite(user_id=new_user.id, favorite_type=favorite['type'], favorite_id=favorite['id'])
             db.session.add(new_favorite)
 
-        # Commit changes to the database
         db.session.commit()
 
         return jsonify({"message": "User created and favorites associated successfully"}), 201
