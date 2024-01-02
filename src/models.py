@@ -19,6 +19,8 @@ class User(db.Model):
         return {
             "id": self.id,
             "email": self.email,
+            "username": self.username,
+            "favorites": [favs.serialize() for favs in self.favorites],
             # do not serialize the password, its a security breach
         }
     

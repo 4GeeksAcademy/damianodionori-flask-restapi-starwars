@@ -102,21 +102,19 @@ def get_entity(entity, entity_id):
 
     return jsonify(item.serialize()), 200
 
-@app.route('/favorite/<entity>/<int:entity_id>', methods=['POST', 'DELETE'])
-def manage_favorite(entity, entity_id):
-    if not g.user:
-        raise APIException("User not authenticated", status_code=401)
+@app.route('/favorite/<entity>/<int:entity_id>/<int:user_id>', methods=['POST', 'DELETE'])
+def manage_favorite(entity, entity_id, user_id):
 
     if entity not in ["planets", "characters", "starships"]:
         raise APIException("Invalid entity for favorite", status_code=400)
 
     if request.method == 'POST':
         # Add favorite logic
-        existing_favorite = Favorite.query.filter_by(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id).first()
+        existing_favorite = Favorite.query.filter_by(user_id=user_id, favorite_type=entity, favorite_id=entity_id).first()
         if existing_favorite:
             raise APIException(f"Favorite {entity} already exists", status_code=400)
 
-        new_favorite = Favorite(user_id=g.user.id, favorite_type=entity, favorite_id=entity_id)
+        new_favorite = Favorite(user_id=user_id, favorite_type=entity, favorite_id=entity_id)
         db.session.add(new_favorite)
         db.session.commit()
 
@@ -137,7 +135,7 @@ def manage_favorite(entity, entity_id):
 def manage_users():
     if request.method == 'GET':
         users = User.query.all()
-        users_list = [{"id": user.id, "username": user.username} for user in users]
+        users_list = [user.serialize() for user in users]
         return jsonify(users_list), 200
 
     elif request.method == 'POST':
@@ -164,12 +162,10 @@ def manage_users():
 
         return jsonify({"message": "User created and favorites associated successfully"}), 201
 
-@app.route('/users/favorites', methods=['GET'])
-def get_user_favorites():
-    if not g.user:
-        raise APIException("User not authenticated", status_code=401)
+@app.route('/users/favorites/<int:user_id>', methods=['GET'])
+def get_user_favorites(user_id):
 
-    favorites = Favorite.query.filter_by(user_id=g.user.id).all()
+    favorites = Favorite.query.filter_by(user_id=user_id).all()
     favorites_list = [{"type": favorite.favorite_type, "id": favorite.favorite_id} for favorite in favorites]
 
     return jsonify(favorites_list), 200
